@@ -10,7 +10,7 @@ export default defineConfig(({ command, mode }) => {
     define: {
       'process.env.WS_URL': JSON.stringify(env.WS_URL || ''),
     },
-    ...(command === 'build' && {
+    ...(command === 'build' && mode !== 'standalone' && {
       build: {
         lib: {
           entry: 'src/index.jsx',
@@ -21,6 +21,12 @@ export default defineConfig(({ command, mode }) => {
           external: ['react', 'react-dom', 'react-dom/client', 'single-spa-react'],
         },
         outDir: `dist/micro-apps/template-websocket-mfe/${SHA}`,
+        emptyOutDir: true,
+      },
+    }),
+    ...(command === 'build' && mode === 'standalone' && {
+      build: {
+        outDir: 'dist/standalone',
         emptyOutDir: true,
       },
     }),

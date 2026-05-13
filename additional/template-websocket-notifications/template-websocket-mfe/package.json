@@ -6,6 +6,7 @@
   "scripts": {
     "start": "vite",
     "build": "vite build",
+    "build:standalone": "vite build --mode standalone",
     "test": "jest --passWithNoTests",
     "lint": "eslint src --ext .js,.jsx"
   },

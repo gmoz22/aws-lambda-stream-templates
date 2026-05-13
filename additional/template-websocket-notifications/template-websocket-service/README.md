@@ -147,13 +147,16 @@ Environment variables (set in `serverless/config.yml`):
 | `SUBSCRIPTIONS_TABLE` | `<service>-<stage>-subscriptions` | DynamoDB table name |
 | `EVENTS_TABLE` | `<service>-<stage>-events` | DynamoDB table name |
 | `WEBSOCKET_ENDPOINT` | Constructed from WebsocketsApi | API GW Management API endpoint |
-| `BUS_NAME` | From event-hub stack output | EventBridge bus name |
-| `BUS_ARN` | From event-hub stack output | EventBridge bus ARN |
-| `OTHER_REGION_BUS_ARN` | From event-hub stack (other region) | Cross-region forwarding target |
+| `BUS_NAME` | From EventBridge bus stack output | EventBridge bus name |
+| `BUS_ARN` | From EventBridge bus stack output | EventBridge bus ARN |
+| `OTHER_REGION_BUS_ARN` | From EventBridge bus stack (other region) | Cross-region forwarding target |
 
 `EVENT_TYPE` is used as a regex in the broadcast Lambda rules and as a literal string in the EventBridge rule pattern.
 
 ## Deployment
+
+> **Requires `aws-lambda-stream` v1.2.0 or later** (`"aws-lambda-stream": "^1.2.0"` in `package.json`).
+> The WebSocket pipeline handlers used by this service were introduced in that release.
 
 ```bash
 # Single region

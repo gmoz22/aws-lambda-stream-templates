@@ -13,7 +13,7 @@ custom:
   org: my
   subsys: template
   source: template-websocket-demo
-  hubStack: template-websocket-demo-hub
+  busStack: template-websocket-demo-bus
 environment:
   ACCOUNT_NAME: ${param:account}
   PROJECT: ${self:service}
@@ -35,8 +35,8 @@ environment:
   EVENT_TYPE: ${param:eventType, '.*'}
   EVENT_TTL_SECONDS: 1800
   CONNECTION_TTL_SECONDS: 7200
-  BUS_NAME: ${cf:${self:custom.hubStack}-${opt:stage}.busName}
-  BUS_ARN: ${cf:${self:custom.hubStack}-${opt:stage}.busArn}
+  BUS_NAME: ${cf:${self:custom.busStack}-${opt:stage}.busName}
+  BUS_ARN: ${cf:${self:custom.busStack}-${opt:stage}.busArn}
   # Multi-region upgrade: uncomment to enable cross-region forwarding
-  # OTHER_REGION_BUS_ARN: ${cf(us-east-1):${self:custom.subsys}-event-hub-${opt:stage}.busArn}  # when deploying us-west-2
-  # OTHER_REGION_BUS_ARN: ${cf(us-west-2):${self:custom.subsys}-event-hub-${opt:stage}.busArn}  # when deploying us-east-1
+  # OTHER_REGION_BUS_ARN: ${cf(us-east-1):${self:custom.subsys}-event-bus-${opt:stage}.busArn}  # when deploying us-west-2
+  # OTHER_REGION_BUS_ARN: ${cf(us-west-2):${self:custom.subsys}-event-bus-${opt:stage}.busArn}  # when deploying us-east-1

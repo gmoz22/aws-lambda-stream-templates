@@ -10,6 +10,9 @@ A complete WebSocket notification system for pushing real-time events from the b
 |--------|-------------|
 | [`template-websocket-service`](template-websocket-service/README.md) | Serverless backend (Node.js 22, SLS v4) — bridges EventBridge events to WebSocket clients via API Gateway |
 | [`template-websocket-mfe`](template-websocket-mfe/README.md) | React micro-frontend (Vite, single-spa) — connects to the service, displays live events |
+| [`template-websocket-demo`](template-websocket-demo/README.md) | End-to-end demo — deploys all infrastructure and hosts the MFE on S3 + CloudFront from a single terminal, with an interactive CLI runner |
+
+> **Requires `aws-lambda-stream` v1.2.0 or later.** The WebSocket pipeline handlers (`toConnections`, `toMessage`, `wsConnect`, `wsDisconnect`, `wsReplay`, `wsSubscribeWrite`, `wsSubscribeDelete`) were introduced in that release.
 
 ---
 
@@ -144,4 +147,5 @@ Include `tags.region` in all published events if you plan to enable multi-region
 
 - [template-websocket-service/README.md](template-websocket-service/README.md) — Lambda functions, DynamoDB schema, subscription semantics, multi-region setup, deployment
 - [template-websocket-mfe/README.md](template-websocket-mfe/README.md) — hook API, components, Vite config, single-spa integration
+- [template-websocket-demo/README.md](template-websocket-demo/README.md) — end-to-end walkthrough, interactive demo runner, S3 + CloudFront MFE hosting, cleanup
 
