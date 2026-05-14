@@ -46,9 +46,31 @@ if [[ -n "$BUCKET" && "$BUCKET" != "None" ]]; then
 fi
 
 echo ""
+echo "=== Purging EventBridge Rules ==="
+bus_name="template-websocket-demo-bus-${STAGE}"
+rules=$(aws events list-rules --event-bus-name "$bus_name" --region "$REGION" \
+  --query "Rules[].Name" --output text 2>/dev/null) || true
+if [[ -n "$rules" && "$rules" != "None" ]]; then
+  for rule in $rules; do
+    targets=$(aws events list-targets-by-rule --rule "$rule" --event-bus-name "$bus_name" \
+      --region "$REGION" --query "Targets[].Id" --output text 2>/dev/null) || true
+    if [[ -n "$targets" && "$targets" != "None" ]]; then
+      # shellcheck disable=SC2086
+      aws events remove-targets --rule "$rule" --event-bus-name "$bus_name" \
+        --region "$REGION" --ids $targets > /dev/null
+    fi
+    aws events delete-rule --name "$rule" --event-bus-name "$bus_name" \
+      --region "$REGION" && echo "  ✓ Deleted rule: $rule" || true
+  done
+else
+  echo "  (no rules found)"
+fi
+
+echo ""
 echo "=== Removing EventBridge Bus ==="
 cd "$(dirname "$0")/.."
-npx serverless remove --stage $STAGE --region $REGION "${SLS_PROFILE_ARGS[@]}" || true
+npm install --silent
+"$(pwd)/node_modules/.bin/serverless" remove --stage $STAGE --region $REGION "${SLS_PROFILE_ARGS[@]}" || true
 
 # ─── Verification ─────────────────────────────────────────────────────────────
 

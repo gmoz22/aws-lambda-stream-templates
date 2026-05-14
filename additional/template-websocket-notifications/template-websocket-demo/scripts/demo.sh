@@ -436,9 +436,32 @@ action_cleanup() {
   fi
 
   echo ""
+  echo -e "${BOLD}=== Purging EventBridge Rules ===${RESET}"
+  local eb_bus_name="template-websocket-demo-bus-${STAGE}"
+  local eb_rules
+  eb_rules=$(aws events list-rules --event-bus-name "$eb_bus_name" --region "$REGION" \
+    --query "Rules[].Name" --output text 2>/dev/null) || true
+  if [[ -n "$eb_rules" && "$eb_rules" != "None" ]]; then
+    for rule in $eb_rules; do
+      local targets
+      targets=$(aws events list-targets-by-rule --rule "$rule" --event-bus-name "$eb_bus_name" \
+        --region "$REGION" --query "Targets[].Id" --output text 2>/dev/null) || true
+      if [[ -n "$targets" && "$targets" != "None" ]]; then
+        # shellcheck disable=SC2086
+        aws events remove-targets --rule "$rule" --event-bus-name "$eb_bus_name" \
+          --region "$REGION" --ids $targets > /dev/null
+      fi
+      aws events delete-rule --name "$rule" --event-bus-name "$eb_bus_name" \
+        --region "$REGION" && echo -e "   ${GREEN}✓${RESET} Deleted rule: $rule" || true
+    done
+  else
+    echo "   (no rules found)"
+  fi
+
+  echo ""
   echo -e "${BOLD}=== Removing EventBridge Bus ===${RESET}"
   cd "$DEMO_DIR"
-  npx serverless remove --stage "$STAGE" --region "$REGION" "${SLS_PROFILE_ARGS[@]}" \
+  "$DEMO_DIR/node_modules/.bin/serverless" remove --stage "$STAGE" --region "$REGION" "${SLS_PROFILE_ARGS[@]}" \
     && echo -e "\n${GREEN}✓ EventBridge Bus removed${RESET}" \
     || echo -e "\n${RED}✗ Failed to remove EventBridge Bus — check the output above${RESET}"
 
