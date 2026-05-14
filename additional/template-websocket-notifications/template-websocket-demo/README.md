@@ -46,14 +46,17 @@ This demo depends on `../template-websocket-service` being deployed (handled by 
 
 ## Prerequisites
 
-- Node.js 22+
-- AWS CLI installed and authenticated — if you use named profiles, run `export AWS_PROFILE=your-profile` before proceeding. Verify with: `aws sts get-caller-identity`
-- Serverless Framework v4 (`npm install -g serverless`)
-- `aws-lambda-stream` v1.2.0 or later (the WebSocket pipeline handlers required by the service were introduced in that release)
+### Node.js >= 22
+Make sure you are using the right version. Verify with `node -v`.
 
-Both the interactive menu (`demo.sh`) and the standalone deploy script (`deploy.sh`) verify AWS credentials at startup and exit immediately with a clear error if no active session is found. They display the account ID and caller identity before asking for confirmation.
+### AWS CLI
+Make sure it is installed and authenticated — if you use named profiles, run `export AWS_PROFILE=your-profile` before proceeding. Verify with: `aws sts get-caller-identity`
 
-If root account credentials are detected, both scripts print a warning. AWS recommends using an IAM user or SSO profile for programmatic access.
+**Note**: Both the interactive menu (`demo.sh`) and the standalone deploy script (`deploy.sh`) verify AWS credentials at startup and exit immediately with a clear error if no active session is found. They display the account ID and caller identity before asking for confirmation.
+
+
+### AWS Lambda Stream
+`aws-lambda-stream` v1.2.0 or later (the WebSocket pipeline handlers required by the service were introduced in that release)
 
 ---
 
