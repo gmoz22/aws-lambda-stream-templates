@@ -1,10 +1,13 @@
 #!/bin/bash
 # Interactive demo runner — combines scripts 01–06 into a single menu-driven tool
 
-set -uo pipefail
+set -eo pipefail
 
 STAGE="${1:-np}"
 REGION="${2:-us-west-2}"
+
+SLS_PROFILE_ARGS=()
+[[ -n "${AWS_PROFILE:-}" ]] && SLS_PROFILE_ARGS=(--aws-profile "$AWS_PROFILE")
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 DEMO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
@@ -39,6 +42,20 @@ preflight() {
     }
   done
 
+  if aws --version 2>&1 | grep -q "aws-cli/1\."; then
+    echo -e "${YELLOW}⚠ Warning: AWS CLI v1 detected. This demo is designed for AWS CLI v2, and some features may not work correctly.${RESET}" >&2
+    echo -e "${DIM}  Please upgrade to AWS CLI v2 for the best experience.${RESET}" >&2
+    errors=1
+  fi
+
+  local node_version
+  node_version=$(node -v 2>/dev/null | grep -oE '[0-9]+' | head -1) || true
+  if [[ -z "$node_version" || "$node_version" -lt 22 ]]; then
+    echo -e "${YELLOW}⚠ Warning: Node.js version 22 or higher is recommended for this demo. Detected version: ${node_version}${RESET}" >&2
+    echo -e "${DIM}  Some features may not work correctly with older Node.js versions.${RESET}" >&2
+    errors=1
+  fi
+
   [[ -d "$SERVICE_DIR" ]] || {
     echo -e "${RED}✗ Directory not found: ${SERVICE_DIR}${RESET}" >&2
     errors=1
@@ -46,11 +63,6 @@ preflight() {
 
   [[ -f "$EMIT_SCRIPT" ]] || {
     echo -e "${RED}✗ Emit script not found: ${EMIT_SCRIPT}${RESET}" >&2
-    errors=1
-  }
-
-  npx serverless --version &>/dev/null || {
-    echo -e "${RED}✗ Serverless Framework not available via npx${RESET}" >&2
     errors=1
   }
 
@@ -128,6 +140,12 @@ require_deployed() {
   fi
 }
 
+get_stack_status() {
+  aws cloudformation describe-stacks \
+    --stack-name "$1" --region "$REGION" \
+    --query "Stacks[0].StackStatus" --output text 2>/dev/null || true
+}
+
 emit_event() {
   local type="$1"
   local data="$2"
@@ -177,13 +195,21 @@ action_deploy() {
   echo -e "${BOLD}=== Deploying EventBridge Bus ===${RESET}"
   cd "$DEMO_DIR"
   npm install
-  npx serverless deploy --stage "$STAGE" --region "$REGION"
-  local bus_rc=$?
-
-  if [[ $bus_rc -ne 0 ]]; then
-    echo -e "\n${RED}✗ EventBridge Bus deployment failed.${RESET}"
-    pause; return
-  fi
+  local bus_status
+  bus_status=$(get_stack_status "$STACK_NAME")
+  case "$bus_status" in
+    CREATE_COMPLETE|UPDATE_COMPLETE|UPDATE_ROLLBACK_COMPLETE)
+      echo -e "${GREEN}✓ Bus stack already deployed — skipping${RESET}" ;;
+    *IN_PROGRESS)
+      echo -e "${YELLOW}⚠ Bus stack deployment in progress — skipping${RESET}" ;;
+    *)
+      npx serverless deploy --stage "$STAGE" --region "$REGION" "${SLS_PROFILE_ARGS[@]}"
+      local bus_rc=$?
+      if [[ $bus_rc -ne 0 ]]; then
+        echo -e "\n${RED}✗ EventBridge Bus deployment failed.${RESET}"
+        pause; return
+      fi ;;
+  esac
 
   echo -e "\n${GREEN}✓ EventBridge Bus deployed: ${BUS_NAME}${RESET}"
   echo ""
@@ -191,16 +217,24 @@ action_deploy() {
   cd "$SERVICE_DIR"
   npm install
 
-  npx serverless deploy --stage "$STAGE" --region "$REGION"
-  local svc_rc=$?
-
-  if [[ $svc_rc -ne 0 ]]; then
-    echo -e "\n${RED}✗ WebSocket Service deployment failed.${RESET}"
-    pause; return
-  fi
+  local svc_status
+  svc_status=$(get_stack_status "template-websocket-service-${STAGE}")
+  case "$svc_status" in
+    CREATE_COMPLETE|UPDATE_COMPLETE|UPDATE_ROLLBACK_COMPLETE)
+      echo -e "${GREEN}✓ WebSocket Service stack already deployed — skipping${RESET}" ;;
+    *IN_PROGRESS)
+      echo -e "${YELLOW}⚠ WebSocket Service stack deployment in progress — skipping${RESET}" ;;
+    *)
+      npx serverless deploy --stage "$STAGE" --region "$REGION" "${SLS_PROFILE_ARGS[@]}"
+      local svc_rc=$?
+      if [[ $svc_rc -ne 0 ]]; then
+        echo -e "\n${RED}✗ WebSocket Service deployment failed.${RESET}"
+        pause; return
+      fi ;;
+  esac
 
   local extracted=""
-  extracted=$(npx serverless info --stage "$STAGE" --region "$REGION" 2>/dev/null \
+  extracted=$(npx serverless info --stage "$STAGE" --region "$REGION" "${SLS_PROFILE_ARGS[@]}" 2>/dev/null \
     | grep -oE 'wss://[^[:space:]]+' | head -1) || true
 
   if [[ -z "$extracted" ]]; then
@@ -385,7 +419,7 @@ action_cleanup() {
   echo ""
   echo -e "${BOLD}=== Removing WebSocket Service ===${RESET}"
   cd "$SERVICE_DIR"
-  npx serverless remove --stage "$STAGE" --region "$REGION" \
+  npx serverless remove --stage "$STAGE" --region "$REGION" "${SLS_PROFILE_ARGS[@]}" \
     && echo -e "\n${GREEN}✓ WebSocket Service removed${RESET}" \
     || echo -e "\n${RED}✗ Failed to remove WebSocket Service — check the output above${RESET}"
 
@@ -404,7 +438,7 @@ action_cleanup() {
   echo ""
   echo -e "${BOLD}=== Removing EventBridge Bus ===${RESET}"
   cd "$DEMO_DIR"
-  npx serverless remove --stage "$STAGE" --region "$REGION" \
+  npx serverless remove --stage "$STAGE" --region "$REGION" "${SLS_PROFILE_ARGS[@]}" \
     && echo -e "\n${GREEN}✓ EventBridge Bus removed${RESET}" \
     || echo -e "\n${RED}✗ Failed to remove EventBridge Bus — check the output above${RESET}"
 

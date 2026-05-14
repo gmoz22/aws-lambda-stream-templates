@@ -7,6 +7,9 @@ set -euo pipefail
 STAGE=${1:-np}
 REGION=${2:-us-west-2}
 
+SLS_PROFILE_ARGS=()
+[[ -n "${AWS_PROFILE:-}" ]] && SLS_PROFILE_ARGS=(--aws-profile "$AWS_PROFILE")
+
 trap 'echo ""; echo "✗ Deployment failed at line $LINENO. Check the output above for details." >&2' ERR
 
 for cmd in aws npm npx; do
@@ -24,6 +27,12 @@ WS_API_NAME="template-websocket-service-${STAGE}"
 [[ -d "$MFE_DIR" ]] || { echo "✗ Directory not found: $MFE_DIR" >&2; exit 1; }
 
 npx serverless --version &>/dev/null || { echo "✗ serverless framework not available via npx" >&2; exit 1; }
+
+get_stack_status() {
+  aws cloudformation describe-stacks \
+    --stack-name "$1" --region "$REGION" \
+    --query "Stacks[0].StackStatus" --output text 2>/dev/null || true
+}
 
 echo ""
 echo "Checking AWS credentials..."
@@ -76,7 +85,15 @@ echo ""
 echo "=== Deploying EventBridge Bus + MFE Hosting ==="
 cd "$DEMO_DIR"
 npm install
-npx serverless deploy --stage $STAGE --region $REGION
+BUS_STATUS=$(get_stack_status "$STACK_NAME")
+case "$BUS_STATUS" in
+  CREATE_COMPLETE|UPDATE_COMPLETE|UPDATE_ROLLBACK_COMPLETE)
+    echo "✓ Bus stack already deployed — skipping" ;;
+  *IN_PROGRESS)
+    echo "⚠ Bus stack deployment in progress — skipping" ;;
+  *)
+    npx serverless deploy --stage $STAGE --region $REGION "${SLS_PROFILE_ARGS[@]}" ;;
+esac
 
 echo ""
 echo "✓ EventBridge Bus deployed: $BUS_NAME"
@@ -85,9 +102,17 @@ echo ""
 echo "=== Deploying WebSocket Service ==="
 cd "$SERVICE_DIR"
 npm install
-npx serverless deploy --stage $STAGE --region $REGION
+SVC_STATUS=$(get_stack_status "template-websocket-service-${STAGE}")
+case "$SVC_STATUS" in
+  CREATE_COMPLETE|UPDATE_COMPLETE|UPDATE_ROLLBACK_COMPLETE)
+    echo "✓ WebSocket Service stack already deployed — skipping" ;;
+  *IN_PROGRESS)
+    echo "⚠ WebSocket Service stack deployment in progress — skipping" ;;
+  *)
+    npx serverless deploy --stage $STAGE --region $REGION "${SLS_PROFILE_ARGS[@]}" ;;
+esac
 
-WS_URL=$(npx serverless info --stage "$STAGE" --region "$REGION" 2>/dev/null \
+WS_URL=$(npx serverless info --stage "$STAGE" --region "$REGION" "${SLS_PROFILE_ARGS[@]}" 2>/dev/null \
   | grep -oE 'wss://[^[:space:]]+' | head -1) || true
 
 if [[ -z "$WS_URL" ]]; then

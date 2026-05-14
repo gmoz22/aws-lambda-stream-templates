@@ -47,7 +47,7 @@ This demo depends on `../template-websocket-service` being deployed (handled by 
 ## Prerequisites
 
 - Node.js 22+
-- AWS CLI installed and **authenticated** (`aws sts get-caller-identity` must succeed)
+- AWS CLI installed and authenticated — if you use named profiles, run `export AWS_PROFILE=your-profile` before proceeding. Verify with: `aws sts get-caller-identity`
 - Serverless Framework v4 (`npm install -g serverless`)
 - `aws-lambda-stream` v1.2.0 or later (the WebSocket pipeline handlers required by the service were introduced in that release)
 
@@ -81,9 +81,11 @@ This opens an interactive menu. All demos run from a single terminal:
 
 Run `0` first to deploy. The script deploys all infrastructure **and** builds and hosts the MFE automatically. It waits until the CloudFront distribution is fully deployed before printing the MFE URL, so the URL is ready to use immediately.
 
-> **First deploy:** CloudFront provisioning can take 5–7 minutes. The script polls and waits automatically — you will see a live status line and a confirmation once it is ready.
+> **First deploy:** CloudFront provisioning can take about 5 minutes. The script polls and waits automatically — you will see a live status line and a confirmation once it is ready.
 
-Each step clears the screen and shows the current WS and MFE URLs at the top. Step 1 prompts you to open the MFE in your browser before emitting the event.
+Re-running option `0` is safe — stacks that are already deployed are detected via CloudFormation and skipped. Only missing or failed stacks are deployed.
+
+Each step shows the current WS and MFE URLs at the top.
 
 > **Remember to run option `9` when you are finished to remove all AWS resources.**
 
@@ -100,7 +102,7 @@ The script accepts optional stage and region arguments:
 For non-interactive or CI/CD use:
 
 ```bash
-./scripts/deploy.sh           # deploy all infrastructure
+./scripts/deploy.sh           # deploy all infrastructure (idempotent — skips already-deployed stacks)
 ./scripts/cleanup.sh          # tear everything down
 ```
 

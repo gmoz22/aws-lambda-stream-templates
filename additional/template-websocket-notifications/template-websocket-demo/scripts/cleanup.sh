@@ -5,6 +5,10 @@ set -e
 
 STAGE=${1:-np}
 REGION=${2:-us-west-2}
+
+SLS_PROFILE_ARGS=()
+[[ -n "${AWS_PROFILE:-}" ]] && SLS_PROFILE_ARGS=(--aws-profile "$AWS_PROFILE")
+
 STACK_NAME="template-websocket-demo-bus-${STAGE}"
 SVC_STACK_NAME="template-websocket-service-${STAGE}"
 
@@ -26,7 +30,7 @@ resource_check() {
 
 echo "=== Removing WebSocket Service ==="
 cd "$(dirname "$0")/../../template-websocket-service"
-npx serverless remove --stage $STAGE --region $REGION || true
+npx serverless remove --stage $STAGE --region $REGION "${SLS_PROFILE_ARGS[@]}" || true
 
 echo ""
 echo "=== Emptying MFE S3 Bucket ==="
@@ -44,7 +48,7 @@ fi
 echo ""
 echo "=== Removing EventBridge Bus ==="
 cd "$(dirname "$0")/.."
-npx serverless remove --stage $STAGE --region $REGION || true
+npx serverless remove --stage $STAGE --region $REGION "${SLS_PROFILE_ARGS[@]}" || true
 
 # ─── Verification ─────────────────────────────────────────────────────────────
 
