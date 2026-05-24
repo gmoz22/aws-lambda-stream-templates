@@ -109,6 +109,60 @@ This WebSocket approach is designed for **sparse operational notifications** whe
 
 ---
 
+## Events Flow
+
+### CONNECT
+<p align="center">
+  <img src="assets/connect-animation.svg" alt="CONNECT flow animation" />
+  <br />
+  <span style="font-size: 0.8em; font-style: italic;">The browser opens a WebSocket connection.<br/>
+  API Gateway triggers the Connect Lambda, which writes the connection ID and its subscriptions into DynamoDB.</span>
+</p>
+
+---
+
+### SUBSCRIBE
+<p align="center">
+  <img src="assets/subscribe-animation.svg" alt="SUBSCRIBE flow animation" />
+  <br />
+  <span style="font-size: 0.8em; font-style: italic;">The client sends a <code>{ action: 'subscribe', eventTypes: [...] }</code> message over an existing connection.<br/>
+  API Gateway triggers the Subscribe Lambda, which deletes the connection's old subscription rows then writes the new ones.</span>
+</p>
+
+---
+
+### BROADCAST
+<p align="center">
+  <img src="assets/broadcast-animation.svg" alt="BROADCAST flow animation" />
+  <br />
+  <span style="font-size: 0.8em; font-style: italic;">A backend service publishes an event to EventBridge.<br/>
+  The Broadcast Lambda is triggered, queries the Subscriptions Table for all matching connections,<br/>
+  then calls the API Gateway Management API to push the event to each connected browser.</span>
+</p>
+
+---
+
+### REPLAY
+<div align="center">
+  <img src="assets/replay-animation.svg" alt="REPLAY flow animation" />
+  <br />
+  <div style="font-size: 0.8em; font-style: italic;">On reconnect the browser sends <code>{ action: 'replay', since }</code>.<br/>API Gateway triggers the Replay Lambda, which queries the Events Table for events newer than <code>since</code>,<br/>
+  then pushes each one back through the WebSocket to the browser.</div>
+</div>
+
+---
+
+### DISCONNECT
+<p align="center">
+  <img src="assets/disconnect-animation.svg" alt="DISCONNECT flow animation" />
+  <br />
+  <span style="font-size: 0.8em; font-style: italic;">The browser closes the WebSocket connection. API Gateway triggers the Disconnect Lambda,<br/>
+  which simultaneously deletes the connection record from the Connections Table<br/>
+  and removes all subscription rows for that connection from the Subscriptions Table.</span>
+</p>
+
+---
+
 ## Publishing events from your backend
 
 Any Lambda in your system can trigger a WebSocket notification by publishing to the EventBridge bus:
